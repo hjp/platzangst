@@ -1,0 +1,7 @@
+{
+    "hosts": ["akran.wsr.ac.at", "hims.wsr.ac.at"],
+    "filesystems": ["/var/lib/postgresql", "/var/lib/postgresql/archive"],
+    "min_free_pct": 6,
+    "interval": 10,
+    "action": ["echo", "kill it"]
+}
