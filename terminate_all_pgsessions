@@ -1,0 +1,23 @@
+#!/usr/bin/python3
+
+import psycopg2
+import psycopg2.extras
+import sys
+import syslog
+
+users = sys.argv[1:]
+
+db = psycopg2.connect("dbname=postgres")
+csr = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+q = """
+    select pid, usename, query from pg_stat_activity
+    where backend_type = 'client backend' and pid != pg_backend_pid()
+    """
+q += " and usename in (" + ",".join(["%s"] * len(users)) + ")"
+csr.execute(q, users)
+for r in csr.fetchall():
+    syslog.syslog(syslog.LOG_WARNING, f"Terminating {r['pid']} of user {r['usename']}, last query: {r['query']}")
+    csr.execute("select pg_terminate_backend(%s)", [r["pid"]])
+
+# vim: tw=132
