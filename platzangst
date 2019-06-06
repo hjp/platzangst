@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+import json
+import subprocess
+import time
+import sys
+import syslog
+
+with open(sys.argv[1]) as f:
+    cfg = json.load(f)
+
+df_cmd = "df --output=avail,size,iavail,itotal,target " + " ".join(cfg["filesystems"])
+
+while True:
+    for host in cfg["hosts"]:
+        cp = subprocess.run(
+                ["ssh", host, df_cmd],
+                stdout=subprocess.PIPE, universal_newlines=True)
+        dfout = cp.stdout.split("\n")
+        for r in dfout[1:-1]:
+            f = r.split()
+            blocks_avail_pct = int(f[0]) / int(f[1]) * 100
+            inodes_avail_pct = int(f[2]) / int(f[3]) * 100
+            if blocks_avail_pct < cfg["min_free_pct"]:
+                syslog.syslog(syslog.LOG_WARNING, f"blocks_avail_pct {blocks_avail_pct} < {cfg['min_free_pct']}, invoking {cfg['action']}")
+                cp = subprocess.run(cfg["action"])
+            if inodes_avail_pct < cfg["min_free_pct"]:
+                syslog.syslog(syslog.LOG_WARNING, f"inodes_avail_pct {inodes_avail_pct} < {cfg['min_free_pct']}, invoking {cfg['action']}")
+                cp = subprocess.run(cfg["action"])
+    time.sleep(cfg["interval"])
+
+# vim: tw=0
